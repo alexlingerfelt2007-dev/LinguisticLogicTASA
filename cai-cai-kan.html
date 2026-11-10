@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Linguistic Logic: Can you guess the Chinese word?</title>
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#eef1fa;
+    --text:#0e1a5a;
+    --muted:#4b557f;
+    --row-bg:#ffffff;
+    --blue-ui:#14239a;
+    --btn2-bg:#ffffff;
+    --btn2-fg:#14239a;
+    /* flag colors, the same in both themes */
+    --blue:#14239a;
+    --red:#d6232c;
+    --red-deep:#9d1119;
+    --white:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#080c2b;
+      --text:#f4f6ff;
+      --muted:#a7b0e0;
+      --row-bg:#10164a;
+      --blue-ui:#3b55e8;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#080c2b;
+    --text:#f4f6ff;
+    --muted:#a7b0e0;
+    --row-bg:#10164a;
+    --blue-ui:#3b55e8;
+  }
+
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *,*::before,*::after{box-sizing:inherit}
+  [hidden]{display:none !important}
+  html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+  body{
+    height:100%;margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    display:flex;justify-content:center;
+  }
+  .app{
+    width:100%;max-width:520px;height:100%;
+    display:flex;flex-direction:column;gap:12px;
+    padding:12px 16px 14px;
+  }
+  .serif{font-family:"Noto Serif TC","Songti TC","PMingLiU","Source Han Serif TC",serif}
+
+  /* top bar (game and word list) */
+  .bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .bar-title{font-size:1.15rem;font-weight:800}
+
+  .screen{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+
+  /* The sign */
+  .card{
+    flex:1;min-height:0;overflow-y:auto;
+    display:flex;border-radius:26px;padding:22px 20px;
+    background:var(--white);color:var(--blue);
+    border:3px solid var(--blue);
+    box-shadow:0 0 0 3px var(--red);
+    margin:3px;
+    transition:background .2s ease, border-color .2s ease, color .2s ease;
+  }
+  .card[data-kind="hard"]{
+    background:var(--red);color:var(--white);
+    border-color:var(--white);
+    box-shadow:0 0 0 3px var(--blue);
+  }
+  .inner{
+    margin:auto;width:100%;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+  }
+  .inner.fresh{animation:drop .26s ease-out}
+  @keyframes drop{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+
+  .tag{
+    margin:0;padding:.3em .9em;border-radius:999px;
+    font-size:.95rem;font-weight:700;
+    background:var(--white);color:var(--red-deep);
+  }
+  .zh{
+    font-family:"Noto Serif TC","Songti TC","PMingLiU","Source Han Serif TC",serif;
+    font-weight:800;line-height:1.12;letter-spacing:.02em;
+    overflow-wrap:anywhere;color:var(--blue);
+  }
+  .card[data-kind="hard"] .zh{color:var(--white)}
+  .zh.s1,.zh.s2{font-size:min(7rem,30vw)}
+  .zh.s3{font-size:min(5.6rem,22vw)}
+  .zh.s4{font-size:min(4.6rem,18vw)}
+  .zh.s5{font-size:min(3.8rem,12.5vw)}
+
+  .py{font-size:1.6rem;font-weight:600;letter-spacing:.02em;color:var(--red)}
+  .card[data-kind="hard"] .py{color:var(--white)}
+  .lit{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .lit-k{font-size:.9rem;opacity:.75}
+  .lit-v{font-size:1.45rem;font-weight:600;line-height:1.25}
+
+  .ans{
+    margin-top:12px;min-width:7.5rem;padding:.3em 1em;border-radius:999px;
+    font-size:2rem;font-weight:800;line-height:1.25;
+    background:rgba(20,35,154,.09);color:rgba(20,35,154,.6);
+    overflow-wrap:anywhere;
+  }
+  .card[data-kind="hard"] .ans{background:rgba(255,255,255,.2);color:rgba(255,255,255,.85)}
+  .ans.on{background:var(--blue);color:var(--white);animation:pop .22s ease-out}
+  .card[data-kind="hard"] .ans.on{background:var(--white);color:var(--red-deep)}
+  @keyframes pop{from{transform:scale(.9);opacity:.4}to{transform:none;opacity:1}}
+  .note{margin:0;font-size:1rem;opacity:.9;max-width:28ch}
+
+  .empty{margin:auto;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+  .empty .big,.hero-zh{
+    font-family:"Noto Serif TC","Songti TC","PMingLiU","Source Han Serif TC",serif;
+    font-size:min(6rem,26vw);font-weight:800;line-height:1.1;color:var(--blue);
+  }
+  .empty p{margin:0;font-size:1.2rem;line-height:1.4;max-width:24ch}
+
+  .hero h1{margin:0;font-size:2rem;line-height:1.1;font-weight:800}
+  .hero .sub{margin:0;font-size:1.2rem;line-height:1.35;color:var(--muted)}
+  .hero .count{margin:6px 0 0;font-size:1rem;color:var(--muted)}
+
+  /* Controls */
+  .controls{flex:none;display:flex;flex-direction:column;gap:12px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{
+    font:inherit;font-weight:800;font-size:1.2rem;
+    min-height:60px;border-radius:18px;border:3px solid transparent;
+    cursor:pointer;padding:0 14px;
+    transition:transform .08s ease, opacity .15s ease;
+  }
+  button:active:not(:disabled){transform:scale(.97)}
+  button:focus-visible,input:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+  button:disabled{opacity:.4;cursor:default}
+  .primary,.reveal{background:var(--blue-ui);color:var(--white)}
+  .reveal{min-height:68px;font-size:1.35rem}
+  .next{background:var(--btn2-bg);color:var(--btn2-fg);border-color:var(--blue-ui)}
+  .hard{background:var(--red);color:var(--white)}
+  .mini{min-height:44px;font-size:1rem;padding:0 18px;border-radius:14px;
+        background:var(--btn2-bg);color:var(--btn2-fg);border-color:var(--blue-ui)}
+
+  /* Word list */
+  input[type="search"]{
+    font:inherit;font-size:1.05rem;min-height:50px;width:100%;
+    border-radius:14px;border:3px solid var(--blue-ui);
+    background:var(--row-bg);color:var(--text);padding:0 14px;
+  }
+  input[type="search"]::placeholder{color:var(--muted)}
+  .tabs{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tab{min-height:48px;font-size:1.05rem;border-radius:14px;
+       background:var(--btn2-bg);color:var(--btn2-fg);border-color:var(--blue-ui)}
+  .tab[aria-selected="true"]{background:var(--blue-ui);color:var(--white)}
+  #tabHard[aria-selected="true"]{background:var(--red);border-color:var(--red)}
+  .words{
+    list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow-y:auto;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .words li{
+    background:var(--row-bg);border-radius:16px;padding:12px 14px;
+    border-left:7px solid var(--blue-ui);
+  }
+  .words.hard li{border-left-color:var(--red)}
+  .w-top{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px}
+  .w-zh{font-size:1.75rem;font-weight:800;color:var(--text)}
+  .w-py{font-size:1.05rem;color:var(--muted)}
+  .w-lit{font-size:1rem;font-style:italic;color:var(--muted);margin-top:2px}
+  .w-en{font-size:1.2rem;font-weight:800;color:var(--text);margin-top:2px}
+  .w-note{font-size:.9rem;color:var(--muted);margin-top:2px}
+  .none{padding:20px;text-align:center;color:var(--muted)}
+
+  /* TASA banner */
+  .tasa{
+    flex:none;display:flex;align-items:center;justify-content:center;gap:12px;
+    background:var(--blue);color:var(--white);
+    border-top:4px solid var(--red);border-radius:14px;
+    padding:9px 14px;font-size:.9rem;line-height:1.25;text-align:left;
+  }
+  .tasa b{
+    flex:none;background:var(--white);color:var(--red-deep);
+    border-radius:8px;padding:.2em .55em;font-size:1rem;letter-spacing:.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .inner.fresh,.ans.on{animation:none}
+    .card,button{transition:none}
+  }
+  @media (max-height:640px){
+    .app{gap:8px;padding-top:8px}
+    .card{padding:14px}
+    .py{font-size:1.35rem}
+    .lit-v{font-size:1.25rem}
+    .ans{font-size:1.6rem}
+    button{min-height:52px}
+    .reveal{min-height:58px}
+    .tasa{padding:6px 12px;font-size:.8rem}
+  }
+</style>
+</head>
+<body>
+<main class="app">
+
+  <header class="bar" id="bar" hidden>
+    <button class="mini" id="menuBtn" type="button">Menu</button>
+    <span class="bar-title" id="barTitle">Linguistic Logic</span>
+  </header>
+
+  <!-- Main menu -->
+  <section class="screen" id="menu">
+    <div class="card hero" data-kind="regular">
+      <div class="inner">
+        <div class="hero-zh" lang="zh-Hant">猜猜看</div>
+        <h1>Linguistic Logic</h1>
+        <p class="sub">Can you guess the Chinese word?</p>
+        <p class="count" id="count"></p>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="primary" id="playBtn" type="button">Play</button>
+      <button class="next" id="listBtn" type="button">Word list</button>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section class="screen" id="game" hidden>
+    <section class="card" id="card" data-kind="regular" aria-live="polite">
+      <div class="empty" id="empty">
+        <div class="big" lang="zh-Hant">猜猜看</div>
+        <p>Tap Next to draw a card, or Hard for the native speaker deck.</p>
+      </div>
+      <div class="inner" id="inner" hidden>
+        <p class="tag" id="tag" hidden>★ Native speaker card</p>
+        <div class="zh s2" id="zh" lang="zh-Hant"></div>
+        <div class="py" id="py"></div>
+        <div class="lit">
+          <span class="lit-k">Literally</span>
+          <span class="lit-v" id="lit"></span>
+        </div>
+        <div class="ans" id="ans">?</div>
+        <p class="note" id="note" hidden></p>
+      </div>
+    </section>
+    <div class="controls">
+      <button class="reveal" id="reveal" type="button" disabled>Reveal</button>
+      <div class="row">
+        <button class="next" id="next" type="button">Next</button>
+        <button class="hard" id="hard" type="button">Hard ★ 難</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Word list -->
+  <section class="screen" id="list" hidden>
+    <input id="search" type="search" placeholder="Search characters, pinyin, or English" aria-label="Search the word list" autocomplete="off">
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tabRegular" type="button" role="tab" aria-selected="true">Regular</button>
+      <button class="tab" id="tabHard" type="button" role="tab" aria-selected="false">Hard ★</button>
+    </div>
+    <ul class="words" id="words"></ul>
+  </section>
+
+  <footer class="tasa">
+    <b>TASA</b>
+    <span>Created by UT Austin Taiwanese American Student Association</span>
+  </footer>
+</main>
+
+<script>
+// Each card: [characters, pinyin, literal breakdown, English, optional note]
+const REGULAR = [
+  ["電腦","diànnǎo","electric brain","computer"],
+  ["電話","diànhuà","electric speech","telephone"],
+  ["中國","Zhōngguó","middle country","China"],
+  ["美國","Měiguó","beautiful country","United States"],
+  ["紅綠燈","hónglǜdēng","red green light","traffic light"],
+  ["番茄","fānqié","foreign eggplant","tomato"],
+  ["鳳梨","fènglí","phoenix pear","pineapple"],
+  ["加州","Jiāzhōu","add state","California"],
+  ["德州","Dézhōu","virtue state","Texas"],
+  ["德國","Déguó","virtue country","Germany"],
+  ["貓王","Māowáng","cat king","Elvis Presley"],
+  ["小狗","xiǎogǒu","small dog","puppy"],
+  ["麵包","miànbāo","flour wrap","bread"],
+  ["書包","shūbāo","book wrap","backpack"],
+  ["麵條","miàntiáo","flour strips","noodles"],
+  ["門口","ménkǒu","gate mouth","entrance"],
+  ["你好","nǐhǎo","you good","hello"],
+  ["飯店","fàndiàn","meal shop","hotel"],
+  ["酒店","jiǔdiàn","wine shop","hotel","Mainland China usage."],
+  ["氣泡酒","qìpàojiǔ","air bubble wine","sparkling wine"],
+  ["火鍋","huǒguō","fire pot","hot pot"],
+  ["火車","huǒchē","fire vehicle","train"],
+  ["公車","gōngchē","public vehicle","bus"],
+  ["熊貓","xióngmāo","bear cat","panda"],
+  ["電梯","diàntī","electric ladder","elevator"],
+  ["紅茶","hóngchá","red tea","black tea"],
+  ["小說","xiǎoshuō","small talk","novel"],
+  ["龍蝦","lóngxiā","dragon shrimp","lobster"],
+  ["別客氣","bié kèqì","don’t act like a guest","you’re welcome"],
+  ["數學","shùxué","number study","math"],
+  ["日本卡通","Rìběn kǎtōng","sun origin card through","anime"],
+  ["十月十七日","shíyuè shíqī rì","ten moons, ten-seven suns","October 17th"],
+  ["夜市","yèshì","night bazaar","night market"],
+  ["雞腿","jītuǐ","chicken leg","drumstick"],
+  ["熱情","rèqíng","hot feeling","passion"],
+  ["愛好","àihào","love good","hobby"],
+  ["紅包","hóngbāo","red wrap","red envelope"],
+  ["大學","dàxué","big study","university"],
+  ["小學","xiǎoxué","small study","elementary school"],
+  ["中學","zhōngxué","middle study","middle school"],
+  ["高中","gāozhōng","high middle","high school"],
+  ["牛仔褲","niúzǎikù","cow lad pants","jeans"],
+  ["牛仔帽","niúzǎimào","cow lad hat","cowboy hat"],
+  ["手機","shǒujī","hand machine","cell phone"],
+  ["冰箱","bīngxiāng","ice box","refrigerator"],
+  ["冷氣","lěngqì","cold air","air conditioner"],
+  ["洗衣機","xǐyījī","wash clothes machine","washing machine"],
+  ["飛機","fēijī","fly machine","airplane"],
+  ["機車","jīchē","machine vehicle","scooter","Also Taiwanese slang for “annoying”."],
+  ["捷運","jiéyùn","swift transport","MRT / subway"],
+  ["腳踏車","jiǎotàchē","foot step vehicle","bicycle"],
+  ["汽水","qìshuǐ","steam water","soda"],
+  ["珍珠奶茶","zhēnzhū nǎichá","pearl milk tea","bubble tea"],
+  ["臭豆腐","chòudòufu","stinky bean curd","stinky tofu"],
+  ["滷肉飯","lǔròufàn","braised meat rice","braised pork rice"],
+  ["刨冰","bàobīng","shave ice","shaved ice"],
+  ["雞排","jīpái","chicken steak","fried chicken cutlet"],
+  ["鳳梨酥","fènglísū","phoenix pear crisp","pineapple cake"],
+  ["東西","dōngxi","east west","thing"],
+  ["馬上","mǎshàng","on the horse","right away"],
+  ["漢堡","hànbǎo","Han fort","hamburger"],
+  ["眼鏡","yǎnjìng","eye mirror","glasses"],
+  ["手錶","shǒubiǎo","hand watch","wristwatch"],
+  ["月亮","yuèliàng","moon bright","moon"],
+  ["豆漿","dòujiāng","bean fluid","soy milk"],
+  ["筷子","kuàizi","quick sticks","chopsticks"],
+  ["電視","diànshì","electric vision","television"],
+  ["電影","diànyǐng","electric shadow","movie"],
+  ["電池","diànchí","electric pond","battery"],
+  ["微波爐","wēibōlú","micro wave stove","microwave"],
+  ["手電筒","shǒudiàntǒng","hand electric tube","flashlight"],
+  ["鉛筆","qiānbǐ","lead brush","pencil"],
+  ["橡皮擦","xiàngpícā","rubber skin wipe","eraser"],
+  ["開心","kāixīn","open heart","happy"],
+  ["小心","xiǎoxīn","small heart","be careful"],
+  ["吃醋","chīcù","eat vinegar","be jealous"],
+  ["生日快樂","shēngrì kuàilè","birth day fast joy","happy birthday"],
+  ["恭喜發財","gōngxǐ fācái","respectfully rejoice, get rich","congratulations, and be prosperous"],
+  ["好吃","hǎochī","good eat","delicious"],
+  ["老師","lǎoshī","old teacher","teacher"],
+  ["牛奶","niúnǎi","cow milk","milk"]
+];
+
+const HARD = [
+  ["前進","qiánjìn","front advance","to move forward"],
+  ["多愁善感","duōchóu shàngǎn","many sorrows, good at feelings","sentimental"],
+  ["存在","cúnzài","keep, be present","to exist"],
+  ["莉莉絲","Lìlìsī","lily lily silk","Lilith"],
+  ["分崩離析","fēnbēng líxī","split, collapse, part, dissect","falling apart"],
+  ["行囊","xíngnáng","travel sack","luggage"],
+  ["陳小希","Chén Xiǎoxī","old small hope","Chen Xiaoxi"],
+  ["路易斯安那州","Lùyìsī’ānnà Zhōu","road easy this peace that state","Louisiana"],
+  ["香檳","xiāngbīn","fragrant betel","champagne"],
+  ["沙發","shāfā","sand send","sofa"],
+  ["巧克力","qiǎokèlì","clever gram strength","chocolate"],
+  ["可口可樂","kěkǒu kělè","tasty, and fun","Coca-Cola"],
+  ["麥當勞","Màidāngláo","wheat should labor","McDonald’s"],
+  ["披薩","pīsà","drape bodhisattva","pizza"],
+  ["三明治","sānmíngzhì","three bright govern","sandwich"],
+  ["馬拉松","mǎlāsōng","horse pull pine","marathon"],
+  ["浪漫","làngmàn","wave overflowing","romantic"],
+  ["俱樂部","jùlèbù","together joy department","club"],
+  ["畫蛇添足","huàshé tiānzú","draw a snake, add feet","overdoing it"],
+  ["對牛彈琴","duìniú tánqín","play the zither to a cow","talking to someone who can’t understand"]
+];
+
+const $ = (id) => document.getElementById(id);
+const screens = { menu: $("menu"), game: $("game"), list: $("list") };
+const bar = $("bar"), barTitle = $("barTitle");
+const card = $("card"), empty = $("empty"), inner = $("inner");
+const zh = $("zh"), py = $("py"), lit = $("lit"), ans = $("ans"), note = $("note"), tag = $("tag");
+const revealBtn = $("reveal");
+const search = $("search"), words = $("words");
+const tabRegular = $("tabRegular"), tabHard = $("tabHard");
+
+let current = null;
+let revealed = false;
+let wakeLock = null;
+let tab = "regular";
+
+$("count").textContent = REGULAR.length + " regular cards, " + HARD.length + " hard cards";
+
+/* ---------- screens ---------- */
+function go(name){
+  for (const k in screens) screens[k].hidden = (k !== name);
+  bar.hidden = (name === "menu");
+  barTitle.textContent = (name === "list") ? "Word list" : "Linguistic Logic";
+  if (name === "game") resetGame();
+  if (name === "list") renderList();
+}
+$("playBtn").addEventListener("click", () => go("game"));
+$("listBtn").addEventListener("click", () => go("list"));
+$("menuBtn").addEventListener("click", () => go("menu"));
+
+/* ---------- game ---------- */
+async function keepAwake(){
+  try{
+    if ("wakeLock" in navigator && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  }catch(e){ /* not supported or blocked, that's fine */ }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !screens.game.hidden) keepAwake();
+});
+
+function resetGame(){
+  current = null;
+  revealed = false;
+  card.dataset.kind = "regular";
+  empty.hidden = false;
+  inner.hidden = true;
+  revealBtn.disabled = true;
+}
+
+function draw(list, isHard){
+  const c = list[Math.floor(Math.random() * list.length)];
+  current = c;
+  revealed = false;
+
+  card.dataset.kind = isHard ? "hard" : "regular";
+  tag.hidden = !isHard;
+  empty.hidden = true;
+  inner.hidden = false;
+
+  zh.textContent = c[0];
+  zh.className = "zh s" + Math.min(Array.from(c[0]).length, 5);
+  py.textContent = c[1];
+  lit.textContent = c[2];
+
+  ans.textContent = "?";
+  ans.classList.remove("on");
+  note.hidden = true;
+  note.textContent = "";
+
+  inner.classList.remove("fresh");
+  void inner.offsetWidth;
+  inner.classList.add("fresh");
+
+  revealBtn.disabled = false;
+  keepAwake();
+}
+
+function reveal(){
+  if (!current || revealed) return;
+  revealed = true;
+  ans.textContent = current[3];
+  ans.classList.remove("on");
+  void ans.offsetWidth;
+  ans.classList.add("on");
+  if (current[4]){ note.textContent = current[4]; note.hidden = false; }
+  revealBtn.disabled = true;
+}
+
+$("next").addEventListener("click", () => draw(REGULAR, false));
+$("hard").addEventListener("click", () => draw(HARD, true));
+revealBtn.addEventListener("click", reveal);
+
+/* ---------- word list ---------- */
+const strip = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+function el(tagName, cls, text){
+  const e = document.createElement(tagName);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderList(){
+  tabRegular.textContent = "Regular (" + REGULAR.length + ")";
+  tabHard.textContent = "Hard ★ (" + HARD.length + ")";
+  tabRegular.setAttribute("aria-selected", tab === "regular");
+  tabHard.setAttribute("aria-selected", tab === "hard");
+
+  const q = strip(search.value.trim());
+  const data = tab === "regular" ? REGULAR : HARD;
+  const hits = data.filter((c) => !q || strip(c.slice(0, 4).join(" ")).includes(q));
+
+  words.className = "words" + (tab === "hard" ? " hard" : "");
+  words.textContent = "";
+
+  if (!hits.length){
+    const li = el("li", "none", "No matches.");
+    words.appendChild(li);
+    return;
+  }
+  for (const c of hits){
+    const li = el("li");
+    const top = el("div", "w-top");
+    const z = el("span", "w-zh serif", c[0]);
+    z.lang = "zh-Hant";
+    top.appendChild(z);
+    top.appendChild(el("span", "w-py", c[1]));
+    li.appendChild(top);
+    li.appendChild(el("div", "w-lit", c[2]));
+    li.appendChild(el("div", "w-en", c[3]));
+    if (c[4]) li.appendChild(el("div", "w-note", c[4]));
+    words.appendChild(li);
+  }
+}
+
+tabRegular.addEventListener("click", () => { tab = "regular"; words.scrollTop = 0; renderList(); });
+tabHard.addEventListener("click", () => { tab = "hard"; words.scrollTop = 0; renderList(); });
+search.addEventListener("input", renderList);
+</script>
+</body>
+</html>
